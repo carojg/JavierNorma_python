@@ -11,69 +11,76 @@ import json
 from IPython.display import SVG, display
 import pymysql #Esta libreria permite la conexión a mysql
 
-def conexion():
-    # creamo la conexion
-    db = pymysql.connect("localhost","root","","paises")
-    return db
+class Api:
+    def __init__(self, pais):
+        self.pais = pais
 
-def insertar(name, population, urlImg, capital):
-    db = conexion()
-    
-    # preparamos el objeto cursor usando el metodo cursor()
-    cursor = db.cursor()
+    def peticionApi(self):
+        # Creamos la petición HTTP con GET:
+        URL = "https://restcountries.eu/rest/v2/"#Guardamos la url
+        PARAMS = "name/"+ self.pais #Guardamos los parametros
+        resp = requests.get(URL + PARAMS)#Solicitamos los datos
 
-    # Preparamos la sentencia SQL para insertar en la BD.
-    sql = "INSERT INTO paises (nombre, numero_habitantes, url_bandera, capital) VALUES (%s, %s, %s, %s)"
-    val = (name, population, urlImg, capital)
-    
-    cursor.execute(sql, val)#Ejecutamos la consulta
+        if (resp.status_code == 200): #Verificamos que tenga datos
+            txt = resp.text #Lo guardamos en una variable
 
-    db.commit()
+            if (txt[0] == "["): #Si el primer caracter es [ entonces eliminamos el primero y el ultimo
+                txt = txt[ 1:len(txt) - 1]
 
-    print(cursor.rowcount, "Fila Insertada.")
-    # desconectar del servidor
-    db.close()
+            objDicc = json.loads(txt) #Cargamos el archivo en formato json
 
-def peticionApi(pais):
-    # Creamos la petición HTTP con GET:
-    URL = "https://restcountries.eu/rest/v2/"#Guardamos la url
-    PARAMS = "name/"+ pais #Guardamos los parametros
-    resp = requests.get(URL + PARAMS)#Solicitamos los datos
+            return objDicc;
+        else:
+            return None
 
-    if (resp.status_code == 200): #Verificamos que tenga datos
-        txt = resp.text #Lo guardamos en una variable
+class Pais:
+    def __init__(self, pais):
+        api = Api(pais)
+        pais = api.peticionApi()
+        if (pais != None):
+            self.urlImg = pais["flag"] #Extraemos la imagen
+            self.name = pais["name"] #Extraemos el nombre
+            self.population = pais["population"] #Extraemos los habitantes
+            self.capital = pais["capital"] #Extraemos la capital
+            self.verific = True
+        else:
+            self.verific = False
 
-        if (txt[0] == "["): #Si el primer caracter es [ entonces eliminamos el primero y el ultimo
-            txt = txt[ 1:len(txt) - 1]
+    def insertar(self):
+        #Creamos nuestra conexion
+        db = pymysql.connect("localhost","root","","paises")
+        # preparamos el objeto cursor usando el metodo cursor()
+        cursor = db.cursor()
 
-        objDicc = json.loads(txt) #Cargamos el archivo en formato json
+        # Preparamos la sentencia SQL para insertar en la BD.
+        sql = "INSERT INTO paises (nombre, numero_habitantes, url_bandera, capital) VALUES (%s, %s, %s, %s)"
+        val = (self.name, self.population, self.urlImg, self.capital)
+        
+        cursor.execute(sql, val)#Ejecutamos la consulta
 
-        return objDicc;
-    else:
-        return None
+        if (self.verific == True):
+            db.commit()
+            print(cursor.rowcount, "Fila Insertada.")
+            # desconectar del servidor
+            db.close()
 
 #Capturamos los datos
-pais = input("Introduce el nombre del país que requiera buscar: ")
-print ("La cadena que ingreso es: ",pais, "\n")#Imprimimos el dato ingresado
+myPais = input("Introduce el nombre del país que requiera buscar: ")
+print ("La cadena que ingreso es: ",myPais, "\n")#Imprimimos el dato ingresado
 
-obj = peticionApi(pais); #Mandamos a llamar a la función para conectarnos a la api
+mexico = Pais(myPais)#Mandamos a llamar a la clase pais para conectarnos a la api
 
-if (obj != None):
-    urlImg = obj["flag"] #Extraemos la imagen
-    name = obj["name"] #Extraemos el nombre
-    population = obj["population"] #Extraemos los habitantes
-    capital = obj["capital"] #Extraemos la capital
-    
+if (mexico.verific == True):
     #Imprimimos los datos
-    print("Nombre del Pais: ", name, "\n",
-          "Capital: ", capital, "\n",
-          "Habitantes: ", population, "\n",
-          "Bandera (url): ", urlImg, "\n"
+    print("Nombre del Pais: ", mexico.name, "\n",
+          "Capital: ", mexico.capital, "\n",
+          "Habitantes: ", mexico.population, "\n",
+          "Bandera (url): ", mexico.urlImg, "\n"
          )
 
-    display(SVG(url=urlImg)) #Imprimimos la imagen  
+    display(SVG(url=mexico.urlImg)) #Imprimimos la imagen  
     
-    insertar(name, population, urlImg, capital); #LLamamos a la función insertar
+    mexico.insertar(); #LLamamos a la función insertar
 else:
     print("Ese pais no existe!")
 
