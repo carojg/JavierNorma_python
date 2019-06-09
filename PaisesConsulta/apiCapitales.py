@@ -8,8 +8,8 @@
 #Importamos librerias
 import requests
 import json
-from IPython.display import SVG, display
 import pymysql #Esta libreria permite la conexión a mysql
+from IPython.display import SVG, display
 
 class Api:
     def __init__(self, pais):
@@ -83,4 +83,3 @@ if (mexico.verific == True):
     mexico.insertar(); #LLamamos a la función insertar
 else:
     print("Ese pais no existe!")
-
